@@ -77,6 +77,12 @@ class ModelConfig:
     # InceptionTime
     n_inception_blocks : int = 3
     inception_out_ch   : int = 32
+    
+    # TCN
+    tcn_n_layers   : int   = 8
+    tcn_hidden_ch  : int   = 64
+    tcn_kernel_size: int   = 7
+    tcn_dropout    : float = 0.2
 
     # Head (frozen/partial-ft senaryoları için)
     head_type    : str   = "none"   # none | linear | mlp | kan
@@ -272,6 +278,19 @@ def get_experiment(preset: str) -> ExperimentConfig:
             ),
             train=TrainConfig(lr=5e-4, lr_backbone=1e-4),
         ),
+        
+        # ── PTB-XL 100 Hz — TCN ──────────────────────────────────────────────
+        "tcn_100hz": ExperimentConfig(
+            name="tcn_100hz", dataset="ptbxl_100hz",
+            model=ModelConfig(name="tcn"),
+        ),
+
+        # ── PTB-XL 500 Hz — TCN ──────────────────────────────────────────────
+        "tcn_500hz": ExperimentConfig(
+            name="tcn_500hz", dataset="ptbxl_500hz",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(name="tcn"),
+        ),
 
         # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
         "resnet1d_arrhythmia": ExperimentConfig(
@@ -304,6 +323,7 @@ def list_presets() -> list[str]:
         "resnet1d_500hz", "seresnet1d_500hz", "inceptiontime_500hz",
         "inception_frozen_linear_500hz", "inception_frozen_mlp_500hz",
         "inception_frozen_kan_500hz",
-        "inception_partial_ft_mlp_500hz", "inception_partial_ft_kan_500hz",
+        "inception_partial_ft_mlp_500hz", "inception_partial_ft_kan_500hz", 
+        "tcn_100hz", "tcn_500hz",
         "resnet1d_arrhythmia", "inceptiontime_arrhythmia",
     ]

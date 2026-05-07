@@ -262,3 +262,79 @@ class InceptionTime1D(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.blocks(x)
         return self.fc(self.pool(x).squeeze(-1))
+        
+
+# ═════════════════════════════════════════════════════════════════════════════
+# TCN (Temporal Convolutional Network)
+# ═════════════════════════════════════════════════════════════════════════════
+
+class _TCNBlock(nn.Module):
+    """Tek TCN bloğu: dilated causal conv + residual."""
+
+    def __init__(self, in_ch: int, out_ch: int, kernel_size: int, dilation: int, dropout: float = 0.2) -> None:
+        super().__init__()
+        pad = (kernel_size - 1) * dilation  # causal padding
+
+        self.conv1 = nn.Conv1d(in_ch, out_ch, kernel_size,
+                               padding=pad, dilation=dilation, bias=False)
+        self.bn1   = nn.BatchNorm1d(out_ch)
+        self.conv2 = nn.Conv1d(out_ch, out_ch, kernel_size,
+                               padding=pad, dilation=dilation, bias=False)
+        self.bn2   = nn.BatchNorm1d(out_ch)
+        self.drop  = nn.Dropout(dropout)
+        self.relu  = nn.ReLU(inplace=True)
+        self.skip  = (
+            nn.Conv1d(in_ch, out_ch, 1, bias=False)
+            if in_ch != out_ch else nn.Identity()
+        )
+        self._pad = pad
+
+    def _chomp(self, x: torch.Tensor) -> torch.Tensor:
+        """Causal convolution için sağdan padding'i kes."""
+        return x[:, :, :-self._pad] if self._pad > 0 else x
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.drop(self.relu(self.bn1(self._chomp(self.conv1(x)))))
+        out = self.drop(self.relu(self.bn2(self._chomp(self.conv2(out)))))
+        return self.relu(out + self.skip(x))
+
+
+class TCN1D(nn.Module):
+    """
+    Temporal Convolutional Network for 1D ECG signals.
+
+    Her katmanda dilation ikiye katlanır: 1, 2, 4, 8, ...
+    Bu sayede receptive field üstel büyür.
+
+    Parameters
+    ----------
+    in_ch        : 12 (EKG lead sayısı)
+    num_classes  : sınıf sayısı
+    n_layers     : TCN blok sayısı (her blokta dilation 2x artar)
+    hidden_ch    : kanal sayısı
+    kernel_size  : konvolüsyon çekirdeği boyutu
+    dropout      : dropout oranı
+    """
+
+    def __init__(
+        self,
+        in_ch: int = 12,
+        num_classes: int = 5,
+        n_layers: int = 8,
+        hidden_ch: int = 64,
+        kernel_size: int = 7,
+        dropout: float = 0.2,
+    ) -> None:
+        super().__init__()
+        blocks = []
+        for i in range(n_layers):
+            in_c  = in_ch if i == 0 else hidden_ch
+            dil   = 2 ** i
+            blocks.append(_TCNBlock(in_c, hidden_ch, kernel_size, dil, dropout))
+        self.network = nn.Sequential(*blocks)
+        self.pool    = nn.AdaptiveAvgPool1d(1)
+        self.fc      = nn.Linear(hidden_ch, num_classes)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.network(x)
+        return self.fc(self.pool(x).squeeze(-1))

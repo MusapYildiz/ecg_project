@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 
 from config import ModelConfig
-from models.backbones import ResNet1D, SEResNet1D, InceptionTime1D
+from models.backbones import ResNet1D, SEResNet1D, InceptionTime1D, TCN1D
 from models.heads import LinearHead, MLPHead, KANHead
 
 
@@ -77,6 +77,14 @@ def _build_backbone(cfg: ModelConfig) -> nn.Module:
         return InceptionTime1D(**common,
                                n_blocks=cfg.n_inception_blocks,
                                out_ch=cfg.inception_out_ch)
+                            
+    if name == "tcn":
+        return TCN1D(**common,
+                     n_layers=cfg.tcn_n_layers,
+                     hidden_ch=cfg.tcn_hidden_ch,
+                     kernel_size=cfg.tcn_kernel_size,
+                     dropout=cfg.tcn_dropout)
+                     
     raise ValueError(f"Bilinmeyen backbone: '{cfg.name}'")
 
 
