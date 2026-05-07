@@ -227,6 +227,52 @@ def get_experiment(preset: str) -> ExperimentConfig:
             model=ModelConfig(name="inceptiontime"),
         ),
 
+        # ── PTB-XL 500 Hz — frozen backbone + head ───────────────────────────
+        "inception_frozen_linear_500hz": ExperimentConfig(
+            name="inception_frozen_linear_500hz", dataset="ptbxl_500hz",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="linear",
+                freeze_backbone=True, unfreeze_last_n_blocks=0,
+            ),
+        ),
+        "inception_frozen_mlp_500hz": ExperimentConfig(
+            name="inception_frozen_mlp_500hz", dataset="ptbxl_500hz",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="mlp",
+                freeze_backbone=True, unfreeze_last_n_blocks=0,
+            ),
+        ),
+        "inception_frozen_kan_500hz": ExperimentConfig(
+            name="inception_frozen_kan_500hz", dataset="ptbxl_500hz",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="kan",
+                freeze_backbone=True, unfreeze_last_n_blocks=0,
+            ),
+        ),
+
+        # ── PTB-XL 500 Hz — kısmi fine-tune ──────────────────────────────────
+        "inception_partial_ft_mlp_500hz": ExperimentConfig(
+            name="inception_partial_ft_mlp_500hz", dataset="ptbxl_500hz",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="mlp",
+                freeze_backbone=True, unfreeze_last_n_blocks=1,
+            ),
+            train=TrainConfig(lr=1e-3, lr_backbone=1e-4),
+        ),
+        "inception_partial_ft_kan_500hz": ExperimentConfig(
+            name="inception_partial_ft_kan_500hz", dataset="ptbxl_500hz",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="kan",
+                freeze_backbone=True, unfreeze_last_n_blocks=1,
+            ),
+            train=TrainConfig(lr=5e-4, lr_backbone=1e-4),
+        ),
+
         # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
         "resnet1d_arrhythmia": ExperimentConfig(
             name="resnet1d_arrhythmia", dataset="arrhythmia",
@@ -256,5 +302,8 @@ def list_presets() -> list[str]:
         "inception_frozen_kan_100hz",
         "inception_partial_ft_mlp_100hz", "inception_partial_ft_kan_100hz",
         "resnet1d_500hz", "seresnet1d_500hz", "inceptiontime_500hz",
+        "inception_frozen_linear_500hz", "inception_frozen_mlp_500hz",
+        "inception_frozen_kan_500hz",
+        "inception_partial_ft_mlp_500hz", "inception_partial_ft_kan_500hz",
         "resnet1d_arrhythmia", "inceptiontime_arrhythmia",
     ]
