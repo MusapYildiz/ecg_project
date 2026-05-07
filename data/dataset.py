@@ -3,9 +3,10 @@ data/dataset.py
 ===============
 PTB-XL .npy dosyalarını okuyan Dataset sınıfı.
 
-Dosya adı formatı:
-  100 Hz → {ecg_id:05d}_lr.npy
-  500 Hz → {ecg_id:05d}_hr.npy
+Desteklenen dosya adı formatları (otomatik tespit edilir):
+  100 Hz → {ecg_id:05d}_lr.npy   örn: 00001_lr.npy
+  500 Hz → {ecg_id:05d}_hr.npy   örn: 00001_hr.npy
+  500 Hz → {ecg_id:05d}.npy      örn: 00001.npy      (eski format)
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ class PTBXLNpyDataset(Dataset):
     normalize : True → per-lead z-score
     """
 
-    _SUFFIX: dict[int, str] = {100: "_lr.npy", 500: "_hr.npy"}
+    _DEFAULT_SUFFIX: dict[int, str] = {100: "_lr.npy", 500: "_hr.npy"}
 
     def __init__(
         self,
@@ -43,7 +44,25 @@ class PTBXLNpyDataset(Dataset):
         self.labels    = labels.astype(np.float32)
         self.indices   = indices
         self.normalize = normalize
-        self.suffix    = self._SUFFIX.get(sr, "_lr.npy")
+        self.suffix    = self._detect_suffix(
+            self._DEFAULT_SUFFIX.get(sr, "_lr.npy")
+        )
+
+    def _detect_suffix(self, expected: str) -> str:
+        """
+        İlk birkaç dosyaya bakarak gerçek suffix'i tespit eder.
+        Önce expected'ı dener, bulamazsa '.npy' (bare) dener.
+        """
+        for idx in self.indices[:10]:
+            eid = int(self.ecg_ids[idx])
+            # Önce beklenen suffix'i dene
+            if os.path.exists(os.path.join(self.npy_dir, f"{eid:05d}{expected}")):
+                return expected
+            # Bare suffix dene: sadece {id}.npy
+            if os.path.exists(os.path.join(self.npy_dir, f"{eid:05d}.npy")):
+                return ".npy"
+        # Bulamazsa default'u döndür (yükleme sırasında hata verir)
+        return expected
 
     def __len__(self) -> int:
         return len(self.indices)
@@ -51,11 +70,9 @@ class PTBXLNpyDataset(Dataset):
     def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor, int]:
         idx = self.indices[i]
         eid = int(self.ecg_ids[idx])
-        x   = self._load(eid)                        # (12, T)
-        y   = torch.from_numpy(self.labels[idx])     # (C,)
+        x   = self._load(eid)
+        y   = torch.from_numpy(self.labels[idx])
         return x, y, eid
-
-    # ── yardımcı ─────────────────────────────────────────────────────────────
 
     def _load(self, eid: int) -> torch.Tensor:
         path = os.path.join(self.npy_dir, f"{eid:05d}{self.suffix}")

@@ -152,7 +152,7 @@ def train_fold(
     """
     model     = model.to(device)
     criterion = nn.BCEWithLogitsLoss()
-    scaler    = torch.cuda.amp.GradScaler(enabled=(use_amp and device.type == "cuda"))
+    scaler    = torch.amp.GradScaler("cuda", enabled=(use_amp and device.type == "cuda"))
 
     if param_groups is None:
         optim = torch.optim.AdamW(
