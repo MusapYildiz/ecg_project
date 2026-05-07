@@ -2,8 +2,13 @@
 data/dataset.py
 ===============
 PTB-XL .npy dosyalarını okuyan Dataset sınıfı.
+
+Dosya adı formatı:
+  100 Hz → {ecg_id:05d}_lr.npy
+  500 Hz → {ecg_id:05d}_hr.npy
 """
 
+from __future__ import annotations
 import os
 import numpy as np
 import torch
@@ -12,31 +17,27 @@ from torch.utils.data import Dataset
 
 class PTBXLNpyDataset(Dataset):
     """
-    .npy formatında kaydedilmiş 12-lead EKG sinyallerini yükler.
-
-    Beklenen dosya adı formatı: {ecg_id:05d}_lr.npy  (100 Hz)
-                                 {ecg_id:05d}_hr.npy  (500 Hz)
-
-    Args:
-        npy_dir   : .npy dosyalarının bulunduğu klasör
-        ecg_ids   : kayıt ID'leri, shape (N,)
-        labels    : multi-hot etiket matrisi, shape (N, C), float32
-        indices   : bu split'te kullanılacak satır indexleri
-        sr        : örnekleme hızı (100 ya da 500); dosya suffix'ini belirler
-        normalize : True ise per-lead z-score uygulanır
+    Parameters
+    ----------
+    npy_dir   : .npy dosyalarının klasörü
+    ecg_ids   : shape (N,) — kayıt ID'leri
+    labels    : shape (N, C) float32 — multi-hot etiket matrisi
+    indices   : bu split'e ait satır indexleri
+    sr        : örnekleme hızı (100 ya da 500)
+    normalize : True → per-lead z-score
     """
 
-    _SUFFIX = {100: "_lr.npy", 500: "_hr.npy"}
+    _SUFFIX: dict[int, str] = {100: "_lr.npy", 500: "_hr.npy"}
 
     def __init__(
         self,
-        npy_dir: str,
+        npy_dir: str | os.PathLike,
         ecg_ids: np.ndarray,
         labels: np.ndarray,
         indices: np.ndarray,
         sr: int = 100,
         normalize: bool = True,
-    ):
+    ) -> None:
         self.npy_dir   = str(npy_dir)
         self.ecg_ids   = ecg_ids
         self.labels    = labels.astype(np.float32)
@@ -44,27 +45,26 @@ class PTBXLNpyDataset(Dataset):
         self.normalize = normalize
         self.suffix    = self._SUFFIX.get(sr, "_lr.npy")
 
-    # ── temel metodlar ────────────────────────────────────────────────────────
     def __len__(self) -> int:
         return len(self.indices)
 
-    def __getitem__(self, i: int):
+    def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor, int]:
         idx = self.indices[i]
         eid = int(self.ecg_ids[idx])
-
-        x = self._load_signal(eid)          # (12, T)
-        y = torch.from_numpy(self.labels[idx])  # (C,)
+        x   = self._load(eid)                        # (12, T)
+        y   = torch.from_numpy(self.labels[idx])     # (C,)
         return x, y, eid
 
     # ── yardımcı ─────────────────────────────────────────────────────────────
-    def _load_signal(self, eid: int) -> torch.Tensor:
+
+    def _load(self, eid: int) -> torch.Tensor:
         path = os.path.join(self.npy_dir, f"{eid:05d}{self.suffix}")
-        x = np.load(path).astype(np.float32)  # (12, T)
+        x = np.load(path).astype(np.float32)
 
         if x.ndim != 2 or x.shape[0] != 12:
             raise ValueError(
-                f"Beklenmeyen sinyal şekli {x.shape} — "
-                f"(12, T) bekleniyor. Dosya: {path}"
+                f"Beklenmeyen sinyal şekli {x.shape} (12, T) bekleniyor. "
+                f"Dosya: {path}"
             )
 
         if self.normalize:

@@ -1,34 +1,32 @@
 """
 models/heads.py
 ===============
-Frozen / fine-tune senaryolarında backbone üstüne eklenen sınıflandırma kafaları.
+Frozen / partial fine-tune senaryolarında backbone üstüne takılan kafalar.
+Hepsi (B, emb_dim) → (B, num_classes) logit üretir.
 """
 
+from __future__ import annotations
 import torch
 import torch.nn as nn
 
 
 class LinearHead(nn.Module):
-    """Basit lineer projeksiyon."""
-
-    def __init__(self, emb_dim: int = 256, num_classes: int = 5):
+    def __init__(self, emb_dim: int = 256, num_classes: int = 5) -> None:
         super().__init__()
         self.fc = nn.Linear(emb_dim, num_classes)
 
-    def forward(self, emb: torch.Tensor) -> torch.Tensor:
-        return self.fc(emb)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.fc(x)
 
 
 class MLPHead(nn.Module):
-    """Tek gizli katmanlı MLP + dropout."""
-
     def __init__(
         self,
         emb_dim: int = 256,
         hidden: int = 256,
         num_classes: int = 5,
         dropout: float = 0.1,
-    ):
+    ) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(emb_dim, hidden),
@@ -37,50 +35,46 @@ class MLPHead(nn.Module):
             nn.Linear(hidden, num_classes),
         )
 
-    def forward(self, emb: torch.Tensor) -> torch.Tensor:
-        return self.net(emb)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
 
 
-# ── KAN (piecewise-linear spline) ─────────────────────────────────────────────
+# ── KAN head (piecewise-linear spline) ───────────────────────────────────────
 
-class SplineLinear(nn.Module):
+class _SplineLinear(nn.Module):
     """
-    Piecewise-linear (triangular basis) genişletme + lineer birleştirme.
-    KAN'ın öğrenilebilir aktivasyon fonksiyonu yerine kullanılan basit versiyon.
+    Triangular-basis (piecewise-linear) spline genişletme + lineer birleştirme.
+    KAN'ın basitleştirilmiş 1-katman versiyonu.
     """
 
-    def __init__(self, in_features: int, out_features: int, grid_size: int = 16):
+    def __init__(self, in_f: int, out_f: int, grid_size: int = 16) -> None:
         super().__init__()
-        self.in_features  = in_features
-        self.out_features = out_features
-        self.grid_size    = grid_size
-
         knots = torch.linspace(-1.0, 1.0, grid_size)
         self.register_buffer("knots", knots)
         self.register_buffer("delta", torch.tensor(2.0 / (grid_size - 1)))
-
-        # (out_features, in_features, grid_size)
-        self.weight = nn.Parameter(
-            torch.randn(out_features, in_features, grid_size) * 0.02
-        )
-        self.bias = nn.Parameter(torch.zeros(out_features))
+        # (out_f, in_f, grid_size)
+        self.weight = nn.Parameter(torch.randn(out_f, in_f, grid_size) * 0.02)
+        self.bias   = nn.Parameter(torch.zeros(out_f))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, in_features)
-        # triangular basis: phi_k(x_i) = max(1 - |x_i - knot_k| / delta, 0)
+        # phi_k(x_i) = max(1 - |x_i - knot_k| / delta, 0)
         phi = torch.clamp(
             1.0 - torch.abs(x.unsqueeze(-1) - self.knots) / self.delta,
             min=0.0,
-        )  # (B, in_features, grid_size)
-        return torch.einsum("bik,oik->bo", phi, self.weight) + self.bias
+        )  # (B, in_f, grid_size)
+        return torch.einsum("big,oig->bo", phi, self.weight) + self.bias
 
 
 class KANHead(nn.Module):
     """
-    Tek katmanlı KAN kafası.
+    Girişi tanh ile [-1, 1]'e normalize eder, ardından SplineLinear uygular.
 
-    Girişi tanh ile [-1,1] aralığına normalize ettikten sonra
-    SplineLinear uygular.
+    Parameters
+    ----------
+    emb_dim   : embedding boyutu (FeatureExtractor çıkışı)
+    num_classes
+    grid_size : spline düğüm sayısı
+    scale     : tanh(x / scale) — büyük değer → girişi daha dar sıkıştırır
     """
 
     def __init__(
@@ -89,11 +83,10 @@ class KANHead(nn.Module):
         num_classes: int = 5,
         grid_size: int = 16,
         scale: float = 2.0,
-    ):
+    ) -> None:
         super().__init__()
         self.scale  = scale
-        self.spline = SplineLinear(emb_dim, num_classes, grid_size)
+        self.spline = _SplineLinear(emb_dim, num_classes, grid_size)
 
-    def forward(self, emb: torch.Tensor) -> torch.Tensor:
-        z = torch.tanh(emb / self.scale)
-        return self.spline(z)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.spline(torch.tanh(x / self.scale))

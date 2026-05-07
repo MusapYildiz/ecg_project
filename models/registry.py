@@ -1,8 +1,9 @@
 """
 models/registry.py
 ==================
-Model fabrikası — config'e göre doğru modeli kurar, checkpoint'i yükler,
-backbone'u dondurur / kısmen çözer.
+Model fabrikası, checkpoint yönetimi, freeze/unfreeze yardımcıları.
+
+Dışarıya açılan ana fonksiyon:  build_model(cfg: ModelConfig) -> nn.Module
 """
 
 from __future__ import annotations
@@ -17,63 +18,66 @@ from models.backbones import ResNet1D, SEResNet1D, InceptionTime1D
 from models.heads import LinearHead, MLPHead, KANHead
 
 
-# ── Feature extractor wrapper ─────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# FeatureExtractor  —  backbone'un fc'sini kaldırıp projeksiyon ekler
+# ─────────────────────────────────────────────────────────────────────────────
 
 class FeatureExtractor(nn.Module):
     """
-    Herhangi bir backbone'dan embedding çıkaran wrapper.
-    backbone.fc katmanını nn.Identity() ile değiştirir,
-    ardından isteğe bağlı bir projeksiyon uygular.
+    Backbone'u feature extractor'a dönüştürür:
+      1. backbone.fc → nn.Identity()   (fc'yi devre dışı bırak)
+      2. proj : Linear(in_dim, emb_dim) ekle
+
+    forward: (B, 12, T) → emb (B, emb_dim)
     """
 
-    def __init__(self, backbone: nn.Module, emb_dim: int = 256):
+    def __init__(self, backbone: nn.Module, emb_dim: int = 256) -> None:
         super().__init__()
-        in_dim = backbone.fc.in_features
-        backbone.fc = nn.Identity()
+        in_dim       = backbone.fc.in_features
+        backbone.fc  = nn.Identity()
         self.backbone = backbone
         self.proj     = nn.Linear(in_dim, emb_dim)
 
-    def forward(self, x: torch.Tensor):
-        raw = self.backbone(x)   # (B, in_dim)
-        emb = self.proj(raw)     # (B, emb_dim)
-        return raw, emb
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.proj(self.backbone(x))
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EmbeddingClassifier  —  FeatureExtractor + herhangi bir head
+# ─────────────────────────────────────────────────────────────────────────────
 
 class EmbeddingClassifier(nn.Module):
-    """FeatureExtractor + herhangi bir head."""
+    """
+    forward: (B, 12, T) → logits (B, num_classes)
+    """
 
-    def __init__(self, feat: FeatureExtractor, head: nn.Module):
+    def __init__(self, feat: FeatureExtractor, head: nn.Module) -> None:
         super().__init__()
         self.feat = feat
         self.head = head
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        _, emb = self.feat(x)
-        return self.head(emb)
+        return self.head(self.feat(x))
 
 
-# ── Backbone fabrikası ────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# İç yardımcılar
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _build_backbone(cfg: ModelConfig) -> nn.Module:
-    name = cfg.name.lower()
     common = dict(in_ch=cfg.in_channels, num_classes=cfg.num_classes)
+    name   = cfg.name.lower()
 
     if name == "resnet1d":
         return ResNet1D(**common, layers=cfg.layers, base_ch=cfg.base_channels)
     if name == "seresnet1d":
-        return SEResNet1D(
-            **common,
-            layers=cfg.layers,
-            base_ch=cfg.base_channels,
-            se_reduction=cfg.se_reduction,
-        )
+        return SEResNet1D(**common, layers=cfg.layers,
+                          base_ch=cfg.base_channels, se_reduction=cfg.se_reduction)
     if name == "inceptiontime":
-        return InceptionTime1D(
-            **common,
-            n_blocks=cfg.n_inception_blocks,
-            out_ch=cfg.inception_out_ch,
-        )
-    raise ValueError(f"Bilinmeyen backbone: '{name}'")
+        return InceptionTime1D(**common,
+                               n_blocks=cfg.n_inception_blocks,
+                               out_ch=cfg.inception_out_ch)
+    raise ValueError(f"Bilinmeyen backbone: '{cfg.name}'")
 
 
 def _build_head(cfg: ModelConfig) -> nn.Module:
@@ -84,44 +88,42 @@ def _build_head(cfg: ModelConfig) -> nn.Module:
         return MLPHead(cfg.emb_dim, cfg.mlp_hidden, cfg.num_classes, cfg.mlp_dropout)
     if ht == "kan":
         return KANHead(cfg.emb_dim, cfg.num_classes, cfg.kan_grid_size, cfg.kan_scale)
-    raise ValueError(f"Bilinmeyen head_type: '{ht}'")
+    raise ValueError(f"Bilinmeyen head_type: '{cfg.head_type}'")
 
 
-# ── Freeze / unfreeze yardımcıları ───────────────────────────────────────────
-
-def _freeze_backbone(feat: FeatureExtractor) -> None:
+def _freeze(feat: FeatureExtractor) -> None:
     for p in feat.backbone.parameters():
         p.requires_grad = False
 
 
-def _unfreeze_last_n_blocks(feat: FeatureExtractor, n: int) -> None:
-    """InceptionTime için son n bloğu çözer. Diğer backbone'lar için layer4 vb."""
-    backbone = feat.backbone
-
-    if hasattr(backbone, "blocks"):           # InceptionTime
-        blocks = list(backbone.blocks.children())
-        for block in blocks[-n:]:
-            for p in block.parameters():
-                p.requires_grad = True
-
-    else:                                     # ResNet / SEResNet
-        all_layers = [backbone.layer1, backbone.layer2,
-                      backbone.layer3, backbone.layer4]
-        for layer in all_layers[-n:]:
-            for p in layer.parameters():
-                p.requires_grad = True
+def _unfreeze_last_n(feat: FeatureExtractor, n: int) -> None:
+    """Son n bloğu / layer'ı eğitilebilir yapar."""
+    if n <= 0:
+        return
+    bb = feat.backbone
+    if hasattr(bb, "blocks"):                          # InceptionTime
+        targets = list(bb.blocks.children())[-n:]
+    else:                                              # ResNet / SEResNet
+        targets = [bb.layer1, bb.layer2, bb.layer3, bb.layer4][-n:]
+    for t in targets:
+        for p in t.parameters():
+            p.requires_grad = True
 
 
-# ── Ana fabrika fonksiyonu ────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Ana fabrika
+# ─────────────────────────────────────────────────────────────────────────────
 
 def build_model(cfg: ModelConfig) -> nn.Module:
     """
-    config.ModelConfig'e göre model oluşturur.
+    ModelConfig'e göre model oluşturur:
 
-    - head_type == "none"  → saf backbone (end-to-end eğitim)
-    - head_type != "none"  → FeatureExtractor + Head
-                             freeze_backbone=True ise backbone dondurulur
-                             unfreeze_last_n_blocks > 0 ise kısmi açılır
+    head_type == "none"
+        → saf backbone, end-to-end eğitim
+    head_type != "none"
+        → FeatureExtractor + Head
+        freeze_backbone=True  → backbone tamamen dondurulur
+        unfreeze_last_n_blocks > 0 → son N blok yeniden açılır (partial fine-tune)
     """
     backbone = _build_backbone(cfg)
 
@@ -132,14 +134,15 @@ def build_model(cfg: ModelConfig) -> nn.Module:
     head = _build_head(cfg)
 
     if cfg.freeze_backbone:
-        _freeze_backbone(feat)
-        if cfg.unfreeze_last_n_blocks > 0:
-            _unfreeze_last_n_blocks(feat, cfg.unfreeze_last_n_blocks)
+        _freeze(feat)
+        _unfreeze_last_n(feat, cfg.unfreeze_last_n_blocks)
 
     return EmbeddingClassifier(feat, head)
 
 
-# ── Checkpoint yardımcıları ───────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Checkpoint yardımcıları
+# ─────────────────────────────────────────────────────────────────────────────
 
 def save_checkpoint(model: nn.Module, path: Path, **meta) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -152,26 +155,47 @@ def load_checkpoint(
     device: Optional[torch.device] = None,
     strict: bool = True,
 ) -> nn.Module:
-    if not path.exists():
+    if not Path(path).exists():
         raise FileNotFoundError(f"Checkpoint bulunamadı: {path}")
     ckpt = torch.load(path, map_location=device or "cpu")
     model.load_state_dict(ckpt["model_state"], strict=strict)
     return model
 
 
-def get_param_groups(model: nn.Module, lr: float, lr_backbone: float):
+def load_backbone_into_embedding_classifier(
+    model: EmbeddingClassifier,
+    ckpt_path: Path,
+    device: Optional[torch.device] = None,
+) -> None:
     """
-    Kısmi fine-tune için iki öğrenme hızlı param grupları.
-    Backbone parametrelerine lr_backbone, diğerlerine lr uygulanır.
+    End-to-end eğitilmiş bir backbone checkpointini
+    EmbeddingClassifier.feat.backbone'a yükler.
+    fc boyut uyuşmazlığını görmezden gelir (strict=False).
+    """
+    if not Path(ckpt_path).exists():
+        raise FileNotFoundError(f"Backbone checkpoint bulunamadı: {ckpt_path}")
+    ckpt = torch.load(ckpt_path, map_location=device or "cpu")
+    model.feat.backbone.load_state_dict(ckpt["model_state"], strict=False)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Optimizasyon yardımcıları
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_param_groups(
+    model: nn.Module,
+    lr: float,
+    lr_backbone: float,
+) -> list[dict]:
+    """
+    Partial fine-tune için iki farklı lr'li param grupları.
+    feat.backbone parametrelerine lr_backbone, kalanına lr uygulanır.
     """
     backbone_params, head_params = [], []
     for name, p in model.named_parameters():
         if not p.requires_grad:
             continue
-        if "feat.backbone" in name:
-            backbone_params.append(p)
-        else:
-            head_params.append(p)
+        (backbone_params if "feat.backbone" in name else head_params).append(p)
 
     groups = []
     if backbone_params:
