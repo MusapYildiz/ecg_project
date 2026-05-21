@@ -123,15 +123,27 @@ def run(
         print(f"\n┌─ Fold {fold} / {len(folds)} {'─'*40}")
 
         # ── Loader'lar ────────────────────────────────────────────────────────
-        train_loader, val_loader, test_loader, classes = make_loaders(
-            cv_dir     = cfg.cv_dir(),
-            npy_dir    = cfg.npy_dir(),
-            fold       = fold,
-            batch_size = cfg.data.batch_size,
-            num_workers= cfg.data.num_workers,
-            sr         = cfg.data.sampling_rate,
-            normalize  = cfg.data.normalize,
-        )
+        # ── Loader'lar ────────────────────────────────────────────────────────
+        if cfg.dataset.startswith("ptbxl_cwt"):
+            from data.loaders_2d import make_cwt_loaders
+            train_loader, val_loader, test_loader, classes = make_cwt_loaders(
+                cv_dir     = cfg.cv_dir(),
+                cwt_dir    = cfg.npy_dir(),
+                fold       = fold,
+                batch_size = cfg.data.batch_size,
+                num_workers= cfg.data.num_workers,
+                normalize  = cfg.data.normalize,
+            )
+        else:
+            train_loader, val_loader, test_loader, classes = make_loaders(
+                cv_dir     = cfg.cv_dir(),
+                npy_dir    = cfg.npy_dir(),
+                fold       = fold,
+                batch_size = cfg.data.batch_size,
+                num_workers= cfg.data.num_workers,
+                sr         = cfg.data.sampling_rate,
+                normalize  = cfg.data.normalize,
+            )
         cfg.model.num_classes = len(classes)
 
         # ── Model ─────────────────────────────────────────────────────────────

@@ -85,6 +85,22 @@ def _build_backbone(cfg: ModelConfig) -> nn.Module:
                      kernel_size=cfg.tcn_kernel_size,
                      dropout=cfg.tcn_dropout)
                      
+    if name == "resnet2d":
+        from models.backbones_2d import ResNet2D
+        return ResNet2D(
+            in_ch       = cfg.in_channels,
+            num_classes = cfg.num_classes,
+            pretrained  = cfg.pretrained,
+        )
+    if name == "vitbase2d":
+        from models.backbones_2d import ViTBase2D
+        return ViTBase2D(
+            in_ch       = cfg.in_channels,
+            num_classes = cfg.num_classes,
+            pretrained  = cfg.pretrained,
+            img_size    = cfg.cwt_img_size,
+        )
+                     
     raise ValueError(f"Bilinmeyen backbone: '{cfg.name}'")
 
 
