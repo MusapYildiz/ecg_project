@@ -50,18 +50,12 @@ def train_epoch(
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-        total += loss.item() * xb.size(0)
-    
-    scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-
         # nan kontrolü
         if torch.isnan(loss):
             print(f"  ⚠️  NaN loss tespit edildi, batch atlandı")
             optimizer.zero_grad(set_to_none=True)
             continue
-
+            
         total += loss.item() * xb.size(0)
 
     return total / len(loader.dataset)
