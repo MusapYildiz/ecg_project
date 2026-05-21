@@ -309,8 +309,9 @@ def get_experiment(preset: str) -> ExperimentConfig:
         ),
         "vitbase2d_cwt_100hz": ExperimentConfig(
             name="vitbase2d_cwt_100hz", dataset="ptbxl_cwt_100hz",
-            data=DataConfig(batch_size=32),
+            data=DataConfig(batch_size=16),
             model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=128),
+            train=TrainConfig(lr=1e-5), 
         ),
 
         # ── PTB-XL CWT 500 Hz ────────────────────────────────────────────────
@@ -321,8 +322,9 @@ def get_experiment(preset: str) -> ExperimentConfig:
         ),
         "vitbase2d_cwt_500hz": ExperimentConfig(
             name="vitbase2d_cwt_500hz", dataset="ptbxl_cwt_500hz",
-            data=DataConfig(batch_size=32),
+            data=DataConfig(batch_size=16),
             model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=128),
+            train=TrainConfig(lr=1e-5), 
         ),
 
         # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
