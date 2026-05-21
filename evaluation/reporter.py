@@ -25,6 +25,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")   # GUI gerektirmez (Colab uyumlu)
 import matplotlib.pyplot as plt
+import itertools
 from pathlib import Path
 from typing import Optional
 
@@ -79,7 +80,51 @@ def _plot_confusion_matrix(
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+def _plot_cooccurrence_matrix(
+    y_true     : np.ndarray,
+    class_names: list[str],
+    fold       : int | str,
+    save_path  : Path,
+) -> None:
+    """
+    Multi-label co-occurrence matrix çizer.
+    mat[i,j] = sınıf i ve sınıf j'nin aynı anda pozitif olduğu örnek sayısı.
+    Diyagonal = her sınıfın kendi pozitif sayısı.
+    """
+    C   = len(class_names)
+    mat = np.zeros((C, C), dtype=np.int64)
 
+    for i in range(C):
+        for j in range(C):
+            mat[i, j] = int(((y_true[:, i] == 1) & (y_true[:, j] == 1)).sum())
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(mat, cmap="YlOrRd")
+
+    ax.set_xticks(range(C))
+    ax.set_yticks(range(C))
+    ax.set_xticklabels(class_names, fontsize=11)
+    ax.set_yticklabels(class_names, fontsize=11)
+
+    title = f"Co-occurrence Matrix — Fold {fold}" if isinstance(fold, int) \
+            else f"Co-occurrence Matrix — {fold}"
+    ax.set_title(title, fontsize=12, fontweight="bold", pad=10)
+    ax.set_xlabel("Class", fontsize=11)
+    ax.set_ylabel("Class", fontsize=11)
+
+    thresh = mat.max() / 2.0
+    for (i, j), v in np.ndenumerate(mat):
+        color = "white" if v > thresh else "black"
+        ax.text(j, i, f"{v:,}", ha="center", va="center",
+                fontsize=10, fontweight="bold", color=color)
+
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    
+    
 # ─────────────────────────────────────────────────────────────────────────────
 # Tek fold raporu
 # ─────────────────────────────────────────────────────────────────────────────
@@ -136,6 +181,14 @@ def save_fold_report(
 
     df_pc = pd.DataFrame(per_class_rows)
     df_pc.to_csv(fold_dir / "per_class_metrics.csv", index=False)
+    
+    # Co-occurrence matrix
+    _plot_cooccurrence_matrix(
+        y_true      = y_true,
+        class_names = class_names,
+        fold        = fold,
+        save_path   = fold_dir / "cooccurrence_matrix.png",
+    )
 
     # ── 3. Özet metrikler ─────────────────────────────────────────────────────
     macro_prec = float(df_pc["precision"].mean())
@@ -220,6 +273,23 @@ def save_experiment_summary(
 
     with open(report_dir / "summary.json", "w") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
+    
+    # Tüm foldların y_true'larını birleştirip genel co-occurrence üret
+    all_y_true = []
+    for fold_summary in fold_summaries:
+        fold_num = fold_summary["fold"]
+        y_true_path = Path(report_dir) / f"fold_{fold_num}" / "y_true.npy"
+        if y_true_path.exists():
+            all_y_true.append(np.load(y_true_path).astype(np.int32))
+
+    if all_y_true:
+        y_true_all = np.concatenate(all_y_true, axis=0)
+        _plot_cooccurrence_matrix(
+            y_true      = y_true_all,
+            class_names = class_names,
+            fold        = "All Folds",
+            save_path   = Path(report_dir) / "cooccurrence_matrix_all_folds.png",
+        )
 
     # Okunabilir özet tablosu
     rows = []
