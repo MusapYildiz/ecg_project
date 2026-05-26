@@ -32,6 +32,9 @@ ARRHYTHMIA_CV_DIR   = CONTENT / "arrhythmia/cv_k5"
 CWT_100HZ_DIR = CONTENT / "PTBXL_cwt_100hz"
 CWT_500HZ_DIR = CONTENT / "PTBXL_cwt_500hz"
 
+CWT224_100HZ_DIR = CONTENT / "PTBXL_cwt224_100hz"
+CWT224_500HZ_DIR = CONTENT / "PTBXL_cwt224_500hz"
+
 # Çıktılar — Drive varsa Drive'a, yoksa /content'e yazar
 def _output_root() -> Path:
     """
@@ -49,6 +52,8 @@ _DATASET_PATHS: dict[str, tuple[Path, Path]] = {
     "ptbxl_500hz"     : (NPY_500HZ_DIR,      CV_500HZ_DIR),
     "ptbxl_cwt_100hz" : (CWT_100HZ_DIR,      CV_100HZ_DIR),
     "ptbxl_cwt_500hz" : (CWT_500HZ_DIR,      CV_500HZ_DIR),
+    "ptbxl_cwt224_100hz" : (CWT224_100HZ_DIR, CV_100HZ_DIR),
+    "ptbxl_cwt224_500hz" : (CWT224_500HZ_DIR, CV_500HZ_DIR),
     "arrhythmia"      : (ARRHYTHMIA_NPY_DIR, ARRHYTHMIA_CV_DIR),
 }
 
@@ -326,6 +331,34 @@ def get_experiment(preset: str) -> ExperimentConfig:
             model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=128),
             train=TrainConfig(lr=1e-5), 
         ),
+        
+        # ── PTB-XL CWT 224×224 100 Hz ────────────────────────────────────────
+        "resnet2d_cwt224_100hz": ExperimentConfig(
+            name="resnet2d_cwt224_100hz", dataset="ptbxl_cwt224_100hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-4),
+        ),
+        "vitbase2d_cwt224_100hz": ExperimentConfig(
+            name="vitbase2d_cwt224_100hz", dataset="ptbxl_cwt224_100hz",
+            data=DataConfig(batch_size=16),
+            model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-5),
+        ),
+
+        # ── PTB-XL CWT 224×224 500 Hz ────────────────────────────────────────
+        "resnet2d_cwt224_500hz": ExperimentConfig(
+            name="resnet2d_cwt224_500hz", dataset="ptbxl_cwt224_500hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-4),
+        ),
+        "vitbase2d_cwt224_500hz": ExperimentConfig(
+            name="vitbase2d_cwt224_500hz", dataset="ptbxl_cwt224_500hz",
+            data=DataConfig(batch_size=16),
+            model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-5),
+        ),
 
         # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
         "resnet1d_arrhythmia": ExperimentConfig(
@@ -362,5 +395,7 @@ def list_presets() -> list[str]:
         "tcn_100hz", "tcn_500hz",
         "resnet2d_cwt_100hz", "vitbase2d_cwt_100hz",
         "resnet2d_cwt_500hz", "vitbase2d_cwt_500hz",
+        "resnet2d_cwt224_100hz", "vitbase2d_cwt224_100hz",
+        "resnet2d_cwt224_500hz", "vitbase2d_cwt224_500hz",
         "resnet1d_arrhythmia", "inceptiontime_arrhythmia",
     ]
