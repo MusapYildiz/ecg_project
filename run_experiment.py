@@ -160,10 +160,24 @@ def run(
         print(f"│  params: {tr/1e6:.2f}M trainable / {tot/1e6:.2f}M total")
 
         # ── Optimizer param grupları ──────────────────────────────────────────
-        pg = (
-            get_param_groups(model, cfg.train.lr, cfg.train.lr_backbone)
-            if _is_partial_ft(cfg) else None
-        )
+        if cfg.model.name == "resnet2d" and "partial_ft" in cfg.name:
+            from models.backbones_2d import get_resnet2d_param_groups
+            pg = get_resnet2d_param_groups(
+                model,
+                lr_head   = cfg.train.lr,
+                lr_layer4 = cfg.train.lr_backbone,
+                lr_layer3 = cfg.train.lr_backbone * 0.1,
+            )
+        elif cfg.model.name == "resnet2d" and "frozen" in cfg.name:
+            from models.backbones_2d import get_resnet2d_frozen_param_groups
+            pg = get_resnet2d_frozen_param_groups(
+                model,
+                lr_head = cfg.train.lr,
+            )
+        elif _is_partial_ft(cfg):
+            pg = get_param_groups(model, cfg.train.lr, cfg.train.lr_backbone)
+        else:
+            pg = None
 
         # ── Eğitim ───────────────────────────────────────────────────────────
         result = train_fold(

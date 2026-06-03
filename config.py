@@ -359,6 +359,34 @@ def get_experiment(preset: str) -> ExperimentConfig:
             model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=224),
             train=TrainConfig(lr=1e-5),
         ),
+        
+        # ── PTB-XL CWT 224×224 — frozen head ─────────────────────────────────
+        "resnet2d_cwt224_frozen_100hz": ExperimentConfig(
+            name="resnet2d_cwt224_frozen_100hz", dataset="ptbxl_cwt224_100hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-3),
+        ),
+        "resnet2d_cwt224_frozen_500hz": ExperimentConfig(
+            name="resnet2d_cwt224_frozen_500hz", dataset="ptbxl_cwt224_500hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-3),
+        ),
+
+        # ── PTB-XL CWT 224×224 — partial fine-tune ───────────────────────────
+        "resnet2d_cwt224_partial_ft_100hz": ExperimentConfig(
+            name="resnet2d_cwt224_partial_ft_100hz", dataset="ptbxl_cwt224_100hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-3, lr_backbone=1e-5),
+        ),
+        "resnet2d_cwt224_partial_ft_500hz": ExperimentConfig(
+            name="resnet2d_cwt224_partial_ft_500hz", dataset="ptbxl_cwt224_500hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-3, lr_backbone=1e-5),
+        ),
 
         # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
         "resnet1d_arrhythmia": ExperimentConfig(
@@ -397,5 +425,7 @@ def list_presets() -> list[str]:
         "resnet2d_cwt_500hz", "vitbase2d_cwt_500hz",
         "resnet2d_cwt224_100hz", "vitbase2d_cwt224_100hz",
         "resnet2d_cwt224_500hz", "vitbase2d_cwt224_500hz",
+        "resnet2d_cwt224_frozen_100hz", "resnet2d_cwt224_frozen_500hz",
+        "resnet2d_cwt224_partial_ft_100hz", "resnet2d_cwt224_partial_ft_500hz",
         "resnet1d_arrhythmia", "inceptiontime_arrhythmia",
     ]

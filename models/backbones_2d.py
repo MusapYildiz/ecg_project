@@ -123,3 +123,56 @@ class ViTBase2D(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
+        
+        
+
+def get_resnet2d_param_groups(
+    model: ResNet2D,
+    lr_head: float = 1e-3,
+    lr_layer4: float = 1e-4,
+    lr_layer3: float = 1e-5,
+) -> list[dict]:
+    """
+    ResNet2D için katman bazlı param grupları.
+    stem, layer1, layer2 frozen kalır.
+    """
+    # Önce tümünü dondur
+    for p in model.parameters():
+        p.requires_grad = False
+
+    # layer3 aç
+    for p in model.model.layer3.parameters():
+        p.requires_grad = True
+
+    # layer4 aç
+    for p in model.model.layer4.parameters():
+        p.requires_grad = True
+
+    # FC head aç
+    for p in model.model.fc.parameters():
+        p.requires_grad = True
+
+    return [
+        {"params": model.model.layer3.parameters(), "lr": lr_layer3},
+        {"params": model.model.layer4.parameters(), "lr": lr_layer4},
+        {"params": model.model.fc.parameters(),     "lr": lr_head},
+    ]
+
+
+def get_resnet2d_frozen_param_groups(
+    model: ResNet2D,
+    lr_head: float = 1e-3,
+) -> list[dict]:
+    """
+    ResNet2D için sadece head eğitimi.
+    Tüm backbone frozen.
+    """
+    for p in model.parameters():
+        p.requires_grad = False
+
+    for p in model.model.fc.parameters():
+        p.requires_grad = True
+
+    return [
+        {"params": model.model.fc.parameters(), "lr": lr_head},
+    ]
