@@ -17,23 +17,24 @@ from typing import Tuple
 # Colab path'leri
 # ─────────────────────────────────────────────────────────────────────────────
 
-CONTENT             = Path("/content")
+CONTENT               = Path("/content")
 
-# Ham veri (session'a özel, Drive'dan extract edilir)
-NPY_100HZ_DIR       = CONTENT / "PTBXL_records100_restore/npy_100"
-NPY_500HZ_DIR       = CONTENT / "PTBXL_records500_restore/npy_500"
-ARRHYTHMIA_NPY_DIR  = CONTENT / "arrhythmia/npy"
+# Ham veri
+NPY_100HZ_DIR         = CONTENT / "PTBXL_records100_restore/npy_100"
+NPY_500HZ_DIR         = CONTENT / "PTBXL_records500_restore/npy_500"
+ARRHYTHMIA_NPY_DIR    = CONTENT / "arrhythmia_npy"
 
-# CV split dosyaları (session'a özel)
-CV_100HZ_DIR        = CONTENT / "cv_npy100_patientwise_superclass_k5"
-CV_500HZ_DIR        = CONTENT / "cv_npy500_patientwise_superclass_k5"
-ARRHYTHMIA_CV_DIR   = CONTENT / "arrhythmia/cv_k5"
+# CV split
+CV_100HZ_DIR          = CONTENT / "cv_npy100_patientwise_superclass_k5"
+CV_500HZ_DIR          = CONTENT / "cv_npy500_patientwise_superclass_k5"
+ARRHYTHMIA_CV_DIR     = CONTENT / "arrhythmia_cv_k5"
 
-CWT_100HZ_DIR = CONTENT / "PTBXL_cwt_100hz"
-CWT_500HZ_DIR = CONTENT / "PTBXL_cwt_500hz"
-
-CWT224_100HZ_DIR = CONTENT / "PTBXL_cwt224_100hz"
-CWT224_500HZ_DIR = CONTENT / "PTBXL_cwt224_500hz"
+# CWT
+CWT_100HZ_DIR         = CONTENT / "PTBXL_cwt_100hz"
+CWT_500HZ_DIR         = CONTENT / "PTBXL_cwt_500hz"
+CWT224_100HZ_DIR      = CONTENT / "PTBXL_cwt224_100hz"
+CWT224_500HZ_DIR      = CONTENT / "PTBXL_cwt224_500hz"
+ARRHYTHMIA_CWT224_DIR = CONTENT / "arrhythmia_cwt224"
 
 # Çıktılar — Drive varsa Drive'a, yoksa /content'e yazar
 def _output_root() -> Path:
@@ -47,14 +48,17 @@ def _output_root() -> Path:
 
 
 # Dataset → (npy_dir, cv_dir) eşlemesi
+
+
 _DATASET_PATHS: dict[str, tuple[Path, Path]] = {
-    "ptbxl_100hz"     : (NPY_100HZ_DIR,      CV_100HZ_DIR),
-    "ptbxl_500hz"     : (NPY_500HZ_DIR,      CV_500HZ_DIR),
-    "ptbxl_cwt_100hz" : (CWT_100HZ_DIR,      CV_100HZ_DIR),
-    "ptbxl_cwt_500hz" : (CWT_500HZ_DIR,      CV_500HZ_DIR),
-    "ptbxl_cwt224_100hz" : (CWT224_100HZ_DIR, CV_100HZ_DIR),
-    "ptbxl_cwt224_500hz" : (CWT224_500HZ_DIR, CV_500HZ_DIR),
-    "arrhythmia"      : (ARRHYTHMIA_NPY_DIR, ARRHYTHMIA_CV_DIR),
+    "ptbxl_100hz"        : (NPY_100HZ_DIR,        CV_100HZ_DIR),
+    "ptbxl_500hz"        : (NPY_500HZ_DIR,        CV_500HZ_DIR),
+    "ptbxl_cwt_100hz"    : (CWT_100HZ_DIR,        CV_100HZ_DIR),
+    "ptbxl_cwt_500hz"    : (CWT_500HZ_DIR,        CV_500HZ_DIR),
+    "ptbxl_cwt224_100hz" : (CWT224_100HZ_DIR,     CV_100HZ_DIR),
+    "ptbxl_cwt224_500hz" : (CWT224_500HZ_DIR,     CV_500HZ_DIR),
+    "arrhythmia"         : (ARRHYTHMIA_NPY_DIR,   ARRHYTHMIA_CV_DIR),
+    "arrhythmia_cwt"     : (ARRHYTHMIA_CWT224_DIR, ARRHYTHMIA_CV_DIR),
 }
 
 
