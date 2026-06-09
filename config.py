@@ -408,14 +408,93 @@ def get_experiment(preset: str) -> ExperimentConfig:
             train=TrainConfig(lr=1e-3),
         ),
 
-        # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
+        # ── ECG-Arrhythmia — 1D modeller ─────────────────────────────────────
         "resnet1d_arrhythmia": ExperimentConfig(
             name="resnet1d_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
             model=ModelConfig(name="resnet1d"),
+        ),
+        "seresnet1d_arrhythmia": ExperimentConfig(
+            name="seresnet1d_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(name="seresnet1d"),
         ),
         "inceptiontime_arrhythmia": ExperimentConfig(
             name="inceptiontime_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
             model=ModelConfig(name="inceptiontime"),
+        ),
+        "tcn_arrhythmia": ExperimentConfig(
+            name="tcn_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(name="tcn"),
+        ),
+
+        # ── ECG-Arrhythmia — frozen head ──────────────────────────────────────
+        "inception_frozen_linear_arrhythmia": ExperimentConfig(
+            name="inception_frozen_linear_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="linear",
+                freeze_backbone=True, unfreeze_last_n_blocks=0,
+            ),
+        ),
+        "inception_frozen_mlp_arrhythmia": ExperimentConfig(
+            name="inception_frozen_mlp_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="mlp",
+                freeze_backbone=True, unfreeze_last_n_blocks=0,
+            ),
+        ),
+        "inception_frozen_kan_arrhythmia": ExperimentConfig(
+            name="inception_frozen_kan_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="kan",
+                freeze_backbone=True, unfreeze_last_n_blocks=0,
+            ),
+        ),
+
+        # ── ECG-Arrhythmia — partial fine-tune ───────────────────────────────
+        "inception_partial_ft_mlp_arrhythmia": ExperimentConfig(
+            name="inception_partial_ft_mlp_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="mlp",
+                freeze_backbone=True, unfreeze_last_n_blocks=1,
+            ),
+            train=TrainConfig(lr=1e-3, lr_backbone=1e-4),
+        ),
+        "inception_partial_ft_kan_arrhythmia": ExperimentConfig(
+            name="inception_partial_ft_kan_arrhythmia", dataset="arrhythmia",
+            data=DataConfig(sampling_rate=500),
+            model=ModelConfig(
+                name="inceptiontime", head_type="kan",
+                freeze_backbone=True, unfreeze_last_n_blocks=1,
+            ),
+            train=TrainConfig(lr=5e-4, lr_backbone=1e-4),
+        ),
+
+        # ── ECG-Arrhythmia — 2D modeller ──────────────────────────────────────
+        "scratchresnet18_cwt224_arrhythmia": ExperimentConfig(
+            name="scratchresnet18_cwt224_arrhythmia", dataset="arrhythmia_cwt",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="scratchresnet18_2d", pretrained=False,
+                             cwt_img_size=224),
+            train=TrainConfig(lr=1e-3),
+        ),
+        "resnet2d_cwt224_arrhythmia": ExperimentConfig(
+            name="resnet2d_cwt224_arrhythmia", dataset="arrhythmia_cwt",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-4),
+        ),
+        "vitbase2d_cwt224_arrhythmia": ExperimentConfig(
+            name="vitbase2d_cwt224_arrhythmia", dataset="arrhythmia_cwt",
+            data=DataConfig(batch_size=16),
+            model=ModelConfig(name="vitbase2d", pretrained=True, cwt_img_size=224),
+            train=TrainConfig(lr=1e-5),
         ),
     }
 
@@ -448,5 +527,11 @@ def list_presets() -> list[str]:
         "resnet2d_cwt224_frozen_100hz", "resnet2d_cwt224_frozen_500hz",
         "resnet2d_cwt224_partial_ft_100hz", "resnet2d_cwt224_partial_ft_500hz",
         "scratchresnet18_cwt224_100hz", "scratchresnet18_cwt224_500hz",
-        "resnet1d_arrhythmia", "inceptiontime_arrhythmia",
+        "resnet1d_arrhythmia", "seresnet1d_arrhythmia",
+        "inceptiontime_arrhythmia", "tcn_arrhythmia",
+        "inception_frozen_linear_arrhythmia", "inception_frozen_mlp_arrhythmia",
+        "inception_frozen_kan_arrhythmia",
+        "inception_partial_ft_mlp_arrhythmia", "inception_partial_ft_kan_arrhythmia",
+        "scratchresnet18_cwt224_arrhythmia", "resnet2d_cwt224_arrhythmia",
+        "vitbase2d_cwt224_arrhythmia",
     ]
