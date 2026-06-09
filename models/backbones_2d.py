@@ -82,6 +82,37 @@ class ResNet2D(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
+        
+
+class ScratchResNet18_2D(nn.Module):
+    """
+    ImageNet pretraining olmadan sıfırdan eğitilen ResNet-18.
+    12 kanallı CWT girişi için uyarlandı.
+
+    Parameters
+    ----------
+    in_ch       : 12 (CWT kanalları = EKG lead sayısı)
+    num_classes : sınıf sayısı
+    """
+
+    def __init__(
+        self,
+        in_ch      : int = 12,
+        num_classes: int = 5,
+    ) -> None:
+        super().__init__()
+        # Pretrained=False — sıfırdan başla
+        base       = tv_models.resnet18(weights=None)
+        # İlk conv: 3 → 12 kanal (sıfırdan init, ImageNet ağırlığı yok)
+        base.conv1 = nn.Conv2d(
+            in_ch, 64,
+            kernel_size=7, stride=2, padding=3, bias=False
+        )
+        base.fc = nn.Linear(base.fc.in_features, num_classes)
+        self.model = base
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

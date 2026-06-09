@@ -387,6 +387,22 @@ def get_experiment(preset: str) -> ExperimentConfig:
             model=ModelConfig(name="resnet2d", pretrained=True, cwt_img_size=224),
             train=TrainConfig(lr=1e-3, lr_backbone=1e-5),
         ),
+        
+        # ── Scratch ResNet18 2D ───────────────────────────────────────────────
+        "scratchresnet18_cwt224_100hz": ExperimentConfig(
+            name="scratchresnet18_cwt224_100hz", dataset="ptbxl_cwt224_100hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="scratchresnet18_2d", pretrained=False,
+                             cwt_img_size=224),
+            train=TrainConfig(lr=1e-3),
+        ),
+        "scratchresnet18_cwt224_500hz": ExperimentConfig(
+            name="scratchresnet18_cwt224_500hz", dataset="ptbxl_cwt224_500hz",
+            data=DataConfig(batch_size=32),
+            model=ModelConfig(name="scratchresnet18_2d", pretrained=False,
+                             cwt_img_size=224),
+            train=TrainConfig(lr=1e-3),
+        ),
 
         # ── ECG-Arrhythmia (ileride tamamlanacak) ────────────────────────────
         "resnet1d_arrhythmia": ExperimentConfig(
@@ -427,5 +443,6 @@ def list_presets() -> list[str]:
         "resnet2d_cwt224_500hz", "vitbase2d_cwt224_500hz",
         "resnet2d_cwt224_frozen_100hz", "resnet2d_cwt224_frozen_500hz",
         "resnet2d_cwt224_partial_ft_100hz", "resnet2d_cwt224_partial_ft_500hz",
+        "scratchresnet18_cwt224_100hz", "scratchresnet18_cwt224_500hz",
         "resnet1d_arrhythmia", "inceptiontime_arrhythmia",
     ]

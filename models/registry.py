@@ -92,6 +92,13 @@ def _build_backbone(cfg: ModelConfig) -> nn.Module:
             num_classes = cfg.num_classes,
             pretrained  = cfg.pretrained,
         )
+    if name == "scratchresnet18_2d":
+        from models.backbones_2d import ScratchResNet18_2D
+        return ScratchResNet18_2D(
+            in_ch       = cfg.in_channels,
+            num_classes = cfg.num_classes,
+        )
+    
     if name == "vitbase2d":
         from models.backbones_2d import ViTBase2D
         return ViTBase2D(
