@@ -88,31 +88,47 @@ class ScratchResNet18_2D(nn.Module):
     """
     ImageNet pretraining olmadan sıfırdan eğitilen ResNet-18.
     12 kanallı CWT girişi için uyarlandı.
-
+ 
     Parameters
     ----------
     in_ch       : 12 (CWT kanalları = EKG lead sayısı)
     num_classes : sınıf sayısı
     """
-
     def __init__(
         self,
         in_ch      : int = 12,
         num_classes: int = 5,
     ) -> None:
         super().__init__()
-        # Pretrained=False — sıfırdan başla
         base       = tv_models.resnet18(weights=None)
-        # İlk conv: 3 → 12 kanal (sıfırdan init, ImageNet ağırlığı yok)
         base.conv1 = nn.Conv2d(
             in_ch, 64,
             kernel_size=7, stride=2, padding=3, bias=False
         )
         base.fc = nn.Linear(base.fc.in_features, num_classes)
         self.model = base
-
+ 
+    def embed(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Returns the 512-d embedding (ResNet-18 avgpool output) before the
+        final FC layer. Re-implements the torchvision forward pass up to
+        avgpool so we don't touch `self.model.fc`.
+        """
+        m = self.model
+        x = m.conv1(x)
+        x = m.bn1(x)
+        x = m.relu(x)
+        x = m.maxpool(x)
+        x = m.layer1(x)
+        x = m.layer2(x)
+        x = m.layer3(x)
+        x = m.layer4(x)
+        x = m.avgpool(x)
+        return torch.flatten(x, 1)  # (B, 512)
+ 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        e = self.embed(x)
+        return self.model.fc(e)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

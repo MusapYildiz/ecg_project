@@ -233,16 +233,6 @@ class _InceptionBlock(nn.Module):
 
 
 class InceptionTime1D(nn.Module):
-    """
-    Parameters
-    ----------
-    in_ch    : 12
-    num_classes : sınıf sayısı
-    n_blocks : InceptionBlock sayısı
-    out_ch   : her modülün per-branch çıkış kanalı
-               → toplam kanal = out_ch * 4 per block
-    """
-
     def __init__(
         self,
         in_ch: int = 12,
@@ -259,9 +249,14 @@ class InceptionTime1D(nn.Module):
         self.pool   = nn.AdaptiveAvgPool1d(1)
         self.fc     = nn.Linear(ch, num_classes)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def embed(self, x: torch.Tensor) -> torch.Tensor:
+        """Returns the 256-d (or ch-d) embedding before the final FC layer."""
         x = self.blocks(x)
-        return self.fc(self.pool(x).squeeze(-1))
+        return self.pool(x).squeeze(-1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        e = self.embed(x)
+        return self.fc(e)
         
 
 # ═════════════════════════════════════════════════════════════════════════════
